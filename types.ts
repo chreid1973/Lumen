@@ -14,6 +14,10 @@ export interface Decision {
   reflections: string;
   status: DecisionStatus;
   createdAt: string;
+  // AI Assistant generated content
+  aiAnalysis?: string;
+  aiOptions?: BrainstormOption[];
+  aiFollowUpQuestions?: string[];
 }
 
 export interface BrainstormOption {
@@ -25,5 +29,7 @@ export interface BrainstormOption {
 export interface DecisionTemplate {
   title: string;
   situation: string;
-  choice: string;
+  choice?: string;
+  reasoning?: string;
+  expectedOutcome?: string;
 }

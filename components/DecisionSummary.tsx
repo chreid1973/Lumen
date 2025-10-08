@@ -5,6 +5,7 @@ import { DecisionStatus } from '../types';
 import { TargetIcon } from './icons/TargetIcon';
 import { CheckCircleIcon } from './icons/CheckCircleIcon';
 import { SparklesIcon } from './icons/SparklesIcon';
+import { BrainIcon } from './icons/BrainIcon';
 
 interface DecisionSummaryProps {
   decision: Decision;
@@ -27,9 +28,19 @@ const SummaryCard: React.FC<{
     </div>
 );
 
+// Helper function to find and linkify URLs in a string, then replace newlines with <br>
+const formatAIResponse = (text: string): string => {
+  if (!text) return '';
+  const urlRegex = /(\b(https?|ftp|file):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])/ig;
+  let linkedText = text.replace(urlRegex, (url) => {
+    return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-blue-500 dark:text-blue-400 hover:underline">${url}</a>`;
+  });
+  return linkedText.replace(/\n/g, '<br />');
+};
 
 export const DecisionSummary: React.FC<DecisionSummaryProps> = ({ decision }) => {
     const isReviewed = decision.status === DecisionStatus.REVIEWED;
+    const hasAIContent = decision.aiAnalysis || (decision.aiOptions && decision.aiOptions.length > 0) || (decision.aiFollowUpQuestions && decision.aiFollowUpQuestions.length > 0);
     
     return (
         <div className="space-y-6 animate-fade-in">
@@ -64,6 +75,59 @@ export const DecisionSummary: React.FC<DecisionSummaryProps> = ({ decision }) =>
                     className="border-blue-500/30"
                  >
                      <p>{decision.expectedOutcome}</p>
+                </SummaryCard>
+            )}
+
+            {hasAIContent && (
+                 <SummaryCard
+                    icon={<BrainIcon className="w-6 h-6 text-purple-500 dark:text-purple-400"/>}
+                    title="AI-Powered Insights"
+                    className="border-purple-500/30"
+                >
+                    <div className="space-y-4">
+                        {decision.aiAnalysis && (
+                            <div>
+                                <h4 className="font-semibold text-gray-800 dark:text-slate-200 mb-2">Reasoning Analysis</h4>
+                                <div dangerouslySetInnerHTML={{ __html: formatAIResponse(decision.aiAnalysis) }} />
+                            </div>
+                        )}
+
+                        {decision.aiOptions && decision.aiOptions.length > 0 && (
+                            <div>
+                                <h4 className="font-semibold text-gray-800 dark:text-slate-200 my-2">Brainstormed Options</h4>
+                                <ul className="space-y-3">
+                                    {decision.aiOptions.map((opt, index) => (
+                                      <li key={index}>
+                                        <strong className="text-gray-900 dark:text-slate-100">{opt.option}</strong>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1 text-xs">
+                                            <div>
+                                                <h5 className="text-green-600 dark:text-green-400 font-semibold">Pros:</h5>
+                                                <ul className="list-disc list-inside">
+                                                    {opt.pros.map((pro, i) => <li key={i}>{pro}</li>)}
+                                                </ul>
+                                            </div>
+                                            <div>
+                                                <h5 className="text-red-600 dark:text-red-400 font-semibold">Cons:</h5>
+                                                <ul className="list-disc list-inside">
+                                                    {opt.cons.map((con, i) => <li key={i}>{con}</li>)}
+                                                </ul>
+                                            </div>
+                                        </div>
+                                      </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+
+                        {decision.aiFollowUpQuestions && decision.aiFollowUpQuestions.length > 0 && (
+                            <div>
+                                <h4 className="font-semibold text-gray-800 dark:text-slate-200 my-2">Follow-up Questions</h4>
+                                <ul className="list-disc list-inside space-y-1">
+                                    {decision.aiFollowUpQuestions.map((q, index) => <li key={index}>{q}</li>)}
+                                </ul>
+                            </div>
+                        )}
+                    </div>
                 </SummaryCard>
             )}
 

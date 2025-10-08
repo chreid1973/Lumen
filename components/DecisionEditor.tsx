@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
-import type { Decision, DecisionTemplate } from '../types';
+import type { Decision, DecisionTemplate, BrainstormOption } from '../types';
 import { DecisionStatus } from '../types';
 import { AIAssistant } from './AIAssistant';
 import { DecisionSummary } from './DecisionSummary';
@@ -73,7 +72,9 @@ export const DecisionEditor: React.FC<DecisionEditorProps> = ({ decision, onUpda
         ...prev,
         title: template.title,
         situation: template.situation,
-        choice: template.choice,
+        choice: template.choice || '',
+        reasoning: template.reasoning || '',
+        expectedOutcome: template.expectedOutcome || '',
     }));
   }
 
@@ -83,6 +84,10 @@ export const DecisionEditor: React.FC<DecisionEditorProps> = ({ decision, onUpda
     onUpdate(updated);
   };
   
+  const handleUpdateAIAssistantData = (updates: Partial<Pick<Decision, 'aiAnalysis' | 'aiOptions' | 'aiFollowUpQuestions'>>) => {
+    setLocalDecision(prev => ({ ...prev, ...updates }));
+  };
+
   const ViewToggle: React.FC = () => (
       <div className="p-1 bg-gray-100 dark:bg-gray-800 rounded-lg flex w-min border border-gray-300 dark:border-gray-700">
           <button 
@@ -170,13 +175,13 @@ export const DecisionEditor: React.FC<DecisionEditorProps> = ({ decision, onUpda
             </Section>
 
             <Section title="3. AI Assistant">
-              <AIAssistant decision={localDecision} />
+              <AIAssistant decision={localDecision} onUpdateAI={handleUpdateAIAssistantData} />
             </section>
 
             <Section title="4. Expected Outcome">
               <p className="text-gray-600 dark:text-slate-400 mb-2">What do you predict will happen as a result of your choice? Be specific.</p>
               <TextArea name="expectedOutcome" value={localDecision.expectedOutcome} onChange={handleInputChange} placeholder="e.g., Within 6 months, I expect to be proficient in the new role and feel challenged but not overwhelmed. I also expect my financial situation to improve." />
-            </section>
+            </Section>
 
             {localDecision.status === DecisionStatus.REVIEWED && (
               <>

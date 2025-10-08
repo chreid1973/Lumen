@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback } from 'react';
 import type { Decision, BrainstormOption } from '../types';
 import { analyzeReasoning, brainstormOptions, askFollowUpQuestions } from '../services/geminiService';
@@ -9,6 +8,7 @@ import { ChatBubbleLeftRightIcon } from './icons/ChatBubbleLeftRightIcon';
 
 interface AIAssistantProps {
   decision: Decision;
+  onUpdateAI: (updates: Partial<Pick<Decision, 'aiAnalysis' | 'aiOptions' | 'aiFollowUpQuestions'>>) => void;
 }
 
 const LoadingSpinner: React.FC<{text?: string}> = ({ text = "Thinking..." }) => (
@@ -18,20 +18,35 @@ const LoadingSpinner: React.FC<{text?: string}> = ({ text = "Thinking..." }) => 
     </div>
 );
 
-const AIResponse: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
-    <div className="mt-4 p-4 bg-white dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
-        <h4 className="font-semibold text-gray-800 dark:text-slate-200 mb-2">{title}</h4>
-        <div className="prose prose-slate dark:prose-invert max-w-none prose-sm">{children}</div>
-    </div>
-);
+const CollapsibleAIResponse: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => {
+    const [isOpen, setIsOpen] = useState(true);
 
-export const AIAssistant: React.FC<AIAssistantProps> = ({ decision }) => {
-  const [analysis, setAnalysis] = useState<string>('');
-  const [options, setOptions] = useState<BrainstormOption[]>([]);
-  const [followUpQuestions, setFollowUpQuestions] = useState<string[]>([]);
+    return (
+        <div className="mt-4 bg-white dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
+            <button
+                onClick={() => setIsOpen(!isOpen)}
+                className="w-full flex justify-between items-center p-4 text-left"
+                aria-expanded={isOpen}
+            >
+                <h4 className="font-semibold text-gray-800 dark:text-slate-200">{title}</h4>
+                <ChevronDownIcon className={`w-5 h-5 text-gray-500 dark:text-slate-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {isOpen && (
+                <div className="px-4 pb-4">
+                    <div className="prose prose-slate dark:prose-invert max-w-none prose-sm">{children}</div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+
+export const AIAssistant: React.FC<AIAssistantProps> = ({ decision, onUpdateAI }) => {
   const [error, setError] = useState<string>('');
   const [loading, setLoading] = useState<'analysis' | 'options' | 'follow-up' | null>(null);
   const [isCollapsed, setIsCollapsed] = useState(true);
+  
+  const { aiAnalysis: analysis, aiOptions: options = [], aiFollowUpQuestions: followUpQuestions = [] } = decision;
 
   const handleAnalyze = useCallback(async () => {
     if (!decision.reasoning) {
@@ -40,17 +55,15 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ decision }) => {
     }
     setLoading('analysis');
     setError('');
-    setAnalysis('');
-    setFollowUpQuestions([]);
     try {
       const result = await analyzeReasoning(decision.reasoning, decision.situation);
-      setAnalysis(result);
+      onUpdateAI({ aiAnalysis: result, aiFollowUpQuestions: [] }); // Clear old questions
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unknown error occurred.');
     } finally {
       setLoading(null);
     }
-  }, [decision.reasoning, decision.situation]);
+  }, [decision.reasoning, decision.situation, onUpdateAI]);
 
   const handleBrainstorm = useCallback(async () => {
     if (!decision.situation) {
@@ -59,31 +72,29 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ decision }) => {
     }
     setLoading('options');
     setError('');
-    setOptions([]);
     try {
       const result = await brainstormOptions(decision.situation);
-      setOptions(result);
+      onUpdateAI({ aiOptions: result });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unknown error occurred.');
     } finally {
       setLoading(null);
     }
-  }, [decision.situation]);
+  }, [decision.situation, onUpdateAI]);
   
   const handleAskFollowUp = useCallback(async () => {
     if (!analysis) return;
     setLoading('follow-up');
     setError('');
-    setFollowUpQuestions([]);
      try {
       const result = await askFollowUpQuestions(decision.situation, decision.reasoning, analysis);
-      setFollowUpQuestions(result);
+      onUpdateAI({ aiFollowUpQuestions: result });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unknown error occurred.');
     } finally {
       setLoading(null);
     }
-  }, [decision.situation, decision.reasoning, analysis]);
+  }, [decision.situation, decision.reasoning, analysis, onUpdateAI]);
 
   if (isCollapsed) {
       return (
@@ -124,9 +135,9 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ decision }) => {
       {error && <div className="mt-4 p-3 bg-red-900/50 text-red-300 rounded-md text-sm border border-red-500/30">{error}</div>}
       
       {analysis && (
-        <AIResponse title="Reasoning Analysis">
+        <CollapsibleAIResponse title="Reasoning Analysis">
             <div dangerouslySetInnerHTML={{ __html: analysis.replace(/\n/g, '<br />') }} />
-        </AIResponse>
+        </CollapsibleAIResponse>
       )}
 
       {analysis && !loading && (
@@ -144,15 +155,15 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ decision }) => {
 
       {loading === 'follow-up' && <div className="mt-4"><LoadingSpinner text="Generating questions..."/></div>}
       {followUpQuestions.length > 0 && (
-          <AIResponse title="Follow-up Questions">
+          <CollapsibleAIResponse title="Follow-up Questions">
               <ul className="list-disc list-inside space-y-2">
                   {followUpQuestions.map((q, index) => <li key={index}>{q}</li>)}
               </ul>
-          </AIResponse>
+          </CollapsibleAIResponse>
       )}
 
       {options.length > 0 && (
-        <AIResponse title="Brainstormed Options">
+        <CollapsibleAIResponse title="Brainstormed Options">
           <ul className="space-y-4">
             {options.map((opt, index) => (
               <li key={index}>
@@ -174,7 +185,7 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ decision }) => {
               </li>
             ))}
           </ul>
-        </AIResponse>
+        </CollapsibleAIResponse>
       )}
     </div>
   );
