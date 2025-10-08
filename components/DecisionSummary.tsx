@@ -1,4 +1,3 @@
-
 import React from 'react';
 import type { Decision } from '../types';
 import { DecisionStatus } from '../types';
@@ -6,6 +5,7 @@ import { TargetIcon } from './icons/TargetIcon';
 import { CheckCircleIcon } from './icons/CheckCircleIcon';
 import { SparklesIcon } from './icons/SparklesIcon';
 import { BrainIcon } from './icons/BrainIcon';
+import { LinkIcon } from './icons/LinkIcon';
 
 interface DecisionSummaryProps {
   decision: Decision;
@@ -40,7 +40,7 @@ const formatAIResponse = (text: string): string => {
 
 export const DecisionSummary: React.FC<DecisionSummaryProps> = ({ decision }) => {
     const isReviewed = decision.status === DecisionStatus.REVIEWED;
-    const hasAIContent = decision.aiAnalysis || (decision.aiOptions && decision.aiOptions.length > 0) || (decision.aiFollowUpQuestions && decision.aiFollowUpQuestions.length > 0);
+    const hasAIContent = decision.aiAnalysis || (decision.aiOptions && decision.aiOptions.length > 0) || (decision.aiFollowUpQuestions && decision.aiFollowUpQuestions.length > 0) || (decision.aiSuggestedResources && decision.aiSuggestedResources.length > 0) || decision.aiResourcesAnalysis;
     
     return (
         <div className="space-y-6 animate-fade-in">
@@ -125,6 +125,32 @@ export const DecisionSummary: React.FC<DecisionSummaryProps> = ({ decision }) =>
                                 <ul className="list-disc list-inside space-y-1">
                                     {decision.aiFollowUpQuestions.map((q, index) => <li key={index}>{q}</li>)}
                                 </ul>
+                            </div>
+                        )}
+
+                        {(decision.aiResourcesAnalysis || (decision.aiSuggestedResources && decision.aiSuggestedResources.length > 0)) && (
+                            <div>
+                                <h4 className="font-semibold text-gray-800 dark:text-slate-200 my-2 flex items-center gap-2">
+                                    <LinkIcon className="w-4 h-4" />
+                                    Suggested Resources
+                                </h4>
+                                {decision.aiResourcesAnalysis && (
+                                     <div className="mb-3" dangerouslySetInnerHTML={{ __html: formatAIResponse(decision.aiResourcesAnalysis) }} />
+                                )}
+                                {decision.aiSuggestedResources && decision.aiSuggestedResources.length > 0 && (
+                                    <>
+                                        <h5 className="text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">Verified Sources:</h5>
+                                        <ul className="space-y-2">
+                                            {decision.aiSuggestedResources.map((resource, index) => (
+                                                <li key={index}>
+                                                    <a href={resource.url} target="_blank" rel="noopener noreferrer" className="font-semibold text-blue-600 dark:text-blue-400 hover:underline">
+                                                        {resource.title}
+                                                    </a>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </>
+                                )}
                             </div>
                         )}
                     </div>

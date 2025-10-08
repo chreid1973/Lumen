@@ -1,14 +1,15 @@
 import React, { useState, useCallback } from 'react';
-import type { Decision, BrainstormOption } from '../types';
-import { analyzeReasoning, brainstormOptions, askFollowUpQuestions } from '../services/geminiService';
+import type { Decision } from '../types';
+import { analyzeReasoning, brainstormOptions, askFollowUpQuestions, suggestResources } from '../services/geminiService';
 import { BrainIcon } from './icons/BrainIcon';
 import { LightbulbIcon } from './icons/LightbulbIcon';
 import { ChevronDownIcon } from './icons/ChevronDownIcon';
 import { ChatBubbleLeftRightIcon } from './icons/ChatBubbleLeftRightIcon';
+import { LinkIcon } from './icons/LinkIcon';
 
 interface AIAssistantProps {
   decision: Decision;
-  onUpdateAI: (updates: Partial<Pick<Decision, 'aiAnalysis' | 'aiOptions' | 'aiFollowUpQuestions'>>) => void;
+  onUpdateAI: (updates: Partial<Pick<Decision, 'aiAnalysis' | 'aiOptions' | 'aiFollowUpQuestions' | 'aiSuggestedResources' | 'aiResourcesAnalysis'>>) => void;
 }
 
 const LoadingSpinner: React.FC<{text?: string}> = ({ text = "Thinking..." }) => (
@@ -43,10 +44,16 @@ const CollapsibleAIResponse: React.FC<{ title: string; children: React.ReactNode
 
 export const AIAssistant: React.FC<AIAssistantProps> = ({ decision, onUpdateAI }) => {
   const [error, setError] = useState<string>('');
-  const [loading, setLoading] = useState<'analysis' | 'options' | 'follow-up' | null>(null);
+  const [loading, setLoading] = useState<'analysis' | 'options' | 'follow-up' | 'resources' | null>(null);
   const [isCollapsed, setIsCollapsed] = useState(true);
   
-  const { aiAnalysis: analysis, aiOptions: options = [], aiFollowUpQuestions: followUpQuestions = [] } = decision;
+  const { 
+      aiAnalysis: analysis, 
+      aiOptions: options = [], 
+      aiFollowUpQuestions: followUpQuestions = [],
+      aiResourcesAnalysis,
+      aiSuggestedResources: resources = [],
+    } = decision;
 
   const handleAnalyze = useCallback(async () => {
     if (!decision.reasoning) {
@@ -96,6 +103,23 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ decision, onUpdateAI }
     }
   }, [decision.situation, decision.reasoning, analysis, onUpdateAI]);
 
+  const handleSuggestResources = useCallback(async () => {
+    if (!decision.situation) {
+        setError('Please describe the situation first.');
+        return;
+    }
+    setLoading('resources');
+    setError('');
+    try {
+      const result = await suggestResources(decision.situation, decision.choice);
+      onUpdateAI({ aiResourcesAnalysis: result.analysis, aiSuggestedResources: result.resources });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An unknown error occurred.');
+    } finally {
+      setLoading(null);
+    }
+  }, [decision.situation, decision.choice, onUpdateAI]);
+
   if (isCollapsed) {
       return (
           <button onClick={() => setIsCollapsed(false)} className="w-full flex justify-between items-center p-3 bg-gray-100/70 dark:bg-gray-800/70 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-md transition text-gray-700 dark:text-slate-300 font-semibold">
@@ -113,11 +137,11 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ decision, onUpdateAI }
         </button>
         <p className="text-gray-600 dark:text-slate-400 mb-4 text-sm">Use AI to stress-test your thinking and discover new possibilities.</p>
         
-      <div className="flex gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <button
           onClick={handleAnalyze}
           disabled={!!loading}
-          className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-md hover:opacity-90 disabled:from-gray-300 disabled:to-gray-300 dark:disabled:from-slate-800 dark:disabled:to-slate-800 disabled:text-gray-500 dark:disabled:text-slate-400 transition shadow-lg hover:shadow-blue-500/30"
+          className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-md hover:opacity-90 disabled:from-gray-300 disabled:to-gray-300 dark:disabled:from-slate-800 dark:disabled:to-slate-800 disabled:text-gray-500 dark:disabled:text-slate-400 transition shadow-lg hover:shadow-blue-500/30"
         >
           <BrainIcon className="w-5 h-5"/>
           {loading === 'analysis' ? <LoadingSpinner /> : 'Analyze Reasoning'}
@@ -125,10 +149,18 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ decision, onUpdateAI }
         <button
           onClick={handleBrainstorm}
           disabled={!!loading}
-          className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-slate-200 font-semibold rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 disabled:bg-gray-100 dark:disabled:bg-slate-800 disabled:text-gray-500 dark:disabled:text-slate-400 transition"
+          className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-slate-200 font-semibold rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 disabled:bg-gray-100 dark:disabled:bg-slate-800 disabled:text-gray-500 dark:disabled:text-slate-400 transition"
         >
           <LightbulbIcon className="w-5 h-5"/>
           {loading === 'options' ? <LoadingSpinner /> : 'Brainstorm Options'}
+        </button>
+        <button
+          onClick={handleSuggestResources}
+          disabled={!!loading}
+          className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-slate-200 font-semibold rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 disabled:bg-gray-100 dark:disabled:bg-slate-800 disabled:text-gray-500 dark:disabled:text-slate-400 transition sm:col-span-2 lg:col-span-1"
+        >
+            <LinkIcon className="w-5 h-5" />
+            {loading === 'resources' ? <LoadingSpinner text="Finding..."/> : 'Suggest Resources'}
         </button>
       </div>
 
@@ -185,6 +217,25 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ decision, onUpdateAI }
               </li>
             ))}
           </ul>
+        </CollapsibleAIResponse>
+      )}
+
+      {(aiResourcesAnalysis || resources.length > 0) && (
+        <CollapsibleAIResponse title="Suggested Resources">
+            {aiResourcesAnalysis && (
+                <p className="mb-4" dangerouslySetInnerHTML={{ __html: aiResourcesAnalysis.replace(/\n/g, '<br />') }} />
+            )}
+            {resources.length > 0 && (
+                 <ul className="space-y-2">
+                    {resources.map((resource, index) => (
+                        <li key={index}>
+                            <a href={resource.url} target="_blank" rel="noopener noreferrer" className="font-semibold text-blue-600 dark:text-blue-400 hover:underline">
+                                {resource.title}
+                            </a>
+                        </li>
+                    ))}
+                </ul>
+            )}
         </CollapsibleAIResponse>
       )}
     </div>

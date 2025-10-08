@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import type { BrainstormOption } from '../types';
+import type { BrainstormOption, SuggestedResource } from '../types';
 
 if (!process.env.API_KEY) {
   // In a real app, you'd want to handle this more gracefully.
@@ -134,5 +134,51 @@ export async function askFollowUpQuestions(situation: string, reasoning: string,
     } catch (error) {
         console.error("Error asking follow-up questions:", error);
         throw new Error("Failed to get follow-up questions from AI. The model may have returned an unexpected format.");
+    }
+}
+
+export async function suggestResources(situation: string, choice: string): Promise<{ analysis: string; resources: SuggestedResource[] }> {
+    const prompt = `
+        A user is trying to make a decision. Here is the context:
+
+        **The Situation:**
+        ${situation}
+
+        **Their Current Choice/Leaning:**
+        ${choice || "Not yet decided."}
+
+        ---
+        Based on this context, please find and summarize helpful and high-quality online resources (e.g., articles, tools, reputable websites) that could help the user gather more information or evaluate their options. Your summary should be helpful and informative. The verified source links will be displayed separately.
+    `;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+            config: {
+                tools: [{googleSearch: {}}],
+            },
+        });
+        
+        const analysis = response.text;
+        const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks ?? [];
+
+        const resources: SuggestedResource[] = groundingChunks
+            .map((chunk: any) => {
+                if (chunk.web) {
+                    return {
+                        title: chunk.web.title || 'Untitled Resource',
+                        url: chunk.web.uri,
+                    };
+                }
+                return null;
+            })
+            .filter((resource): resource is SuggestedResource => resource !== null);
+
+        return { analysis, resources };
+
+    } catch (error) {
+        console.error("Error suggesting resources:", error);
+        throw new Error("Failed to get suggested resources from AI. Please check your connection and API key.");
     }
 }

@@ -3,6 +3,12 @@ export enum DecisionStatus {
   REVIEWED = 'Reviewed',
 }
 
+export interface SuggestedResource {
+  title: string;
+  url: string;
+  description?: string;
+}
+
 export interface Decision {
   id: string;
   title: string;
@@ -18,6 +24,8 @@ export interface Decision {
   aiAnalysis?: string;
   aiOptions?: BrainstormOption[];
   aiFollowUpQuestions?: string[];
+  aiResourcesAnalysis?: string;
+  aiSuggestedResources?: SuggestedResource[];
 }
 
 export interface BrainstormOption {

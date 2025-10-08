@@ -84,7 +84,7 @@ export const DecisionEditor: React.FC<DecisionEditorProps> = ({ decision, onUpda
     onUpdate(updated);
   };
   
-  const handleUpdateAIAssistantData = (updates: Partial<Pick<Decision, 'aiAnalysis' | 'aiOptions' | 'aiFollowUpQuestions'>>) => {
+  const handleUpdateAIAssistantData = (updates: Partial<Pick<Decision, 'aiAnalysis' | 'aiOptions' | 'aiFollowUpQuestions' | 'aiSuggestedResources' | 'aiResourcesAnalysis'>>) => {
     setLocalDecision(prev => ({ ...prev, ...updates }));
   };
 
